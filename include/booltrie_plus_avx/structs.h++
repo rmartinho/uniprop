@@ -1,6 +1,6 @@
 #pragma once
 
-#include <booltrie/structs.h++>
+#include <common/structs.h++>
 
 #include <array>
 #include <initializer_list>

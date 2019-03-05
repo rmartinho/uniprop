@@ -1,7 +1,7 @@
 #pragma once
 
 #include <common/general_category.h++>
-#include <booltrie/structs.h++>
+#include <common/structs.h++>
 #include <booltrie/is.h++>
 
 namespace sg16 {
