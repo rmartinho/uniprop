@@ -30,7 +30,7 @@ namespace booltrie {
 # Mapping taken from Table 12 from:
 # http://www.unicode.org/reports/tr44/#General_Category_Values
 expanded_categories = {
-    'Lu': ['LC', 'L'], 'Ll': ['LC', 'L'], 'Lt': ['LC', 'L'],
+    'Lu': ['L'], 'Ll': ['L'], 'Lt': ['L'],
     'Lm': ['L'], 'Lo': ['L'],
     'Mn': ['M'], 'Mc': ['M'], 'Me': ['M'],
     'Nd': ['N'], 'Nl': ['N'], 'No': ['N'],
@@ -365,10 +365,23 @@ def emit_small_bool_trie(f, name, t_data, is_pub=True):
 
     f.write("};\n\n")
 
+def emit_exhaustive_list16(f, name, t_data, is_pub=True):
+    f.write("constexpr exhaustive_list16 %s = {\n"
+            % name)
+
+    f.write("    {\n")
+    data = ','.join(('0x%04x' % u) for subrange in (range(pair[0], pair[1]+1) for pair in t_data) for u in subrange)
+    format_table_content(f, data, 8)
+    f.write("\n    },\n")
+
+    f.write("};\n\n")
+
 def emit_property_module(f, mod, tbl, emit):
     for cat in sorted(emit):
         if cat in ["Cc", "White_Space"]:
             emit_small_bool_trie(f, "%s_table" % cat, tbl[cat])
+        elif cat in ["Lt", "Me", "Pc", "Pd", "Pf", "Pi", "Z", "Zs"]:
+            emit_exhaustive_list16(f, "%s_table" % cat, tbl[cat])
         else:
             emit_bool_trie(f, "%s_table" % cat, tbl[cat])
 
@@ -449,7 +462,14 @@ constexpr version unicode_version = { %s, %s, %s };
         norm_props = load_properties("DerivedNormalizationProps.txt", ["Full_Composition_Exclusion"])
 
         # category tables
-        for (name, cat, pfuns) in ("general_category", gencats, ["N", "Cc"]), \
+        for (name, cat, pfuns) in ("general_category", gencats,
+            ["C", "Cc", "Cf", "Cn", "Co",
+             "L", "Ll", "Lm", "Lo", "Lt", "Lu",
+             "M", "Mc", "Me", "Mn",
+             "N", "Nd", "Nl", "No",
+             "P", "Pc", "Pd", "Pe", "Pf", "Pi", "Po", "Ps",
+             "S", "Sc", "Sk", "Sm", "So",
+             "Z", "Zl", "Zp", "Zs"]), \
                                   ("derived_property", derived, want_derived), \
                                   ("property", props, ["White_Space"]):
             emit_property_module(rf, name, cat, pfuns)

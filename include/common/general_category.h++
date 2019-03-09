@@ -8,7 +8,7 @@ enum class general_category {
     m, mc, me, mn,
     n, nd, nl, no,
     p, pc, pd, pe, pf, pi, po, ps,
-    sc, sk, sm, so,
+    s, sc, sk, sm, so,
     z, zl, zp, zs,
 };
 
