@@ -442,7 +442,7 @@ constexpr version unicode_version = { %s, %s, %s };
         (canon_decomp, compat_decomp, gencats, combines,
                 to_upper, to_lower, to_title) = load_unicode_data("UnicodeData.txt")
         load_special_casing("SpecialCasing.txt", to_upper, to_lower, to_title)
-        want_derived = ["Alphabetic", "Lowercase", "Uppercase"]
+        want_derived = ["Alphabetic", "Lowercase", "Uppercase", "Default_Ignorable_Code_Point"]
         derived = load_properties("DerivedCoreProperties.txt", want_derived)
         scripts = load_properties("Scripts.txt", [])
         props = load_properties("PropList.txt", ["White_Space", "Noncharacter_Code_Point"])
