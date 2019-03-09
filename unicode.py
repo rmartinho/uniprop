@@ -376,12 +376,39 @@ def emit_exhaustive_list16(f, name, t_data, is_pub=True):
 
     f.write("};\n\n")
 
+def emit_private_use_ranges(f, name, t_data, is_pub=True):
+    f.write("constexpr private_use_ranges %s = {};\n\n"
+            % name)
+
+def emit_noncharacter_ranges(f, name, t_data, is_pub=True):
+    f.write("constexpr noncharacter_ranges %s = {};\n\n"
+            % name)
+
+def emit_single_code_point(f, name, t_data, is_pub=True):
+    code_point = "U'\\U%08x'" % t_data[0][0]
+
+    f.write("constexpr single_code_point<%s> %s = {\n"
+            % (code_point, name))
+
+    f.write("    {\n")
+    data = ','.join(('0x%04x' % u) for subrange in (range(pair[0], pair[1]+1) for pair in t_data) for u in subrange)
+    format_table_content(f, data, 8)
+    f.write("\n    },\n")
+
+    f.write("};\n\n")
+
 def emit_property_module(f, mod, tbl, emit):
     for cat in sorted(emit):
         if cat in ["Cc", "White_Space"]:
             emit_small_bool_trie(f, "%s_table" % cat, tbl[cat])
         elif cat in ["Lt", "Me", "Pc", "Pd", "Pf", "Pi", "Z", "Zs"]:
             emit_exhaustive_list16(f, "%s_table" % cat, tbl[cat])
+        elif cat in ["Co"]:
+            emit_private_use_ranges(f, "%s_table" % cat, tbl[cat])
+        elif cat in ["Cn", "Noncharacter_Code_Point"]:
+            emit_noncharacter_ranges(f, "%s_table" % cat, tbl[cat])
+        elif cat in ["Zl", "Zp"]:
+            emit_single_code_point(f, "%s_table" % cat, tbl[cat])
         else:
             emit_bool_trie(f, "%s_table" % cat, tbl[cat])
 
@@ -436,7 +463,7 @@ def emit_norm_module(f, canon, compat, combine, norm_props):
     canon_comp_keys = sorted(canon_comp.keys())
 
 if __name__ == "__main__":
-    r = fdir + "tables.rs"
+    r = fdir + "tables.cpp"
     if os.path.exists(r):
         os.remove(r)
     with open(r, "w") as rf:
@@ -478,5 +505,5 @@ constexpr version unicode_version = { %s, %s, %s };
         #emit_norm_module(rf, canon_decomp, compat_decomp, combines, norm_props)
         #emit_conversions_module(rf, to_upper, to_lower, to_title)
         rf.write("}\n}")
-    print("Regenerated tables.rs.")
+    print("Regenerated tables.cpp.")
 

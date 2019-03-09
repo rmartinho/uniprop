@@ -113,4 +113,18 @@ struct private_use_ranges {
     }
 };
 
+struct noncharacter_ranges {
+    constexpr std::size_t size() const noexcept {
+        return 0;
+    }
+
+    constexpr bool operator()(char32_t u) const noexcept {
+        return (u & 0xFFFE) == 0xFFFE;
+    }
+};
+
+struct version {
+    unsigned major, minor, revision;
+};
+
 }
