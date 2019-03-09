@@ -4,11 +4,8 @@ project (uniprop)
 set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-#find_package (Boost COMPONENTS system filesystem REQUIRED)
-
-set (CMAKE_C_COMPILER clang)
-set (CMAKE_CXX_COMPILER clang++)
 set (CMAKE_CXX_STANDARD 17)
+set (CMAKE_CXX_EXTENSIONS OFF)
 
 include_directories (${PROJECT_SOURCE_DIR}/include)
 
