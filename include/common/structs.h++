@@ -113,7 +113,7 @@ struct range_list {
         return full_size(list);
     }
 
-    constexpr bool operator()(char32_t u) const noexcept {
+    bool operator()(char32_t u) const noexcept {
         auto it = *std::upper_bound(list.rbegin(), list.rend(), u,
                 [](char32_t u, range const& g) {
                     return u >= g.first;
