@@ -2,6 +2,8 @@
 
 #include <array>
 #include <initializer_list>
+#include <iterator>
+#include <algorithm>
 #include <cstdint>
 
 namespace sg16 {
@@ -99,6 +101,27 @@ struct exhaustive_list16 {
     }
 
     std::initializer_list<std::uint16_t> list;
+};
+
+struct range_list {
+    struct range {
+        std::uint32_t first;
+        std::uint32_t last;
+    };
+
+    constexpr std::size_t size() const noexcept {
+        return full_size(list);
+    }
+
+    constexpr bool operator()(char32_t u) const noexcept {
+        auto it = *std::upper_bound(list.rbegin(), list.rend(), u,
+                [](char32_t u, range const& g) {
+                    return u >= g.first;
+                });
+        return it != range.rend() && it->last >= u;
+    }
+
+    std::initializer_list<range> list;
 };
 
 struct private_use_ranges {

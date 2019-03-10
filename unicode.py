@@ -41,6 +41,24 @@ expanded_categories = {
     'Cc': ['C'], 'Cf': ['C'], 'Cs': ['C'], 'Co': ['C'], 'Cn': ['C'],
 }
 
+script_list = [
+        "Adlam", "Ahom", "Anatolian_Hieroglyphs", "Arabic", "Armenian", "Avestan", "Balinese", "Bamum", "Bassa_Vah", "Batak",
+        "Bengali", "Bhaiksuki", "Bopomofo", "Brahmi", "Braille", "Buginese", "Buhid", "Canadian_Aboriginal", "Carian", "Caucasian_Albanian",
+        "Chakma", "Cham", "Cherokee", "Common", "Coptic", "Cuneiform", "Cypriot", "Cyrillic", "Deseret", "Devanagari",
+        "Dogra", "Duployan", "Egyptian_Hieroglyphs", "Elbasan", "Elymaic", "Ethiopic", "Georgian", "Glagolitic", "Gothic", "Grantha",
+        "Greek", "Gujarati", "Gunjala_Gondi", "Gurmukhi", "Han", "Hangul", "Hanifi_Rohingya", "Hanunoo", "Hatran", "Hebrew",
+        "Hiragana", "Imperial_Aramaic", "Inherited", "Inscriptional_Pahlavi", "Inscriptional_Parthian", "Javanese", "Kaithi", "Kannada", "Katakana", "Kayah_Li",
+        "Kharoshthi", "Khmer", "Khojki", "Khudawadi", "Lao", "Latin", "Lepcha", "Limbu", "Linear_A", "Linear_B",
+        "Lisu", "Lycian", "Lydian", "Mahajani", "Makasar", "Malayalam", "Mandaic", "Manichaean", "Marchen", "Masaram_Gondi",
+        "Medefaidrin", "Meetei_Mayek", "Mende_Kikakui", "Meroitic_Cursive", "Meroitic_Hieroglyphs", "Miao", "Modi", "Mongolian", "Mro", "Multani",
+        "Myanmar", "Nabataean", "Nandinagari", "Newa", "New_Tai_Lue", "Nko", "Nushu", "Nyiakeng_Puachue_Hmong", "Ogham", "Ol_Chiki",
+        "Old_Hungarian", "Old_Italic", "Old_North_Arabian", "Old_Permic", "Old_Persian", "Old_Sogdian", "Old_South_Arabian", "Old_Turkic", "Oriya", "Osage",
+        "Osmanya", "Pahawh_Hmong", "Palmyrene", "Pau_Cin_Hau", "Phags_Pa", "Phoenician", "Psalter_Pahlavi", "Rejang", "Runic", "Samaritan",
+        "Saurashtra", "Sharada", "Shavian", "Siddham", "SignWriting", "Sinhala", "Sogdian", "Sora_Sompeng", "Soyombo", "Sundanese",
+        "Syloti_Nagri", "Syriac", "Tagalog", "Tagbanwa", "Tai_Le", "Tai_Tham", "Tai_Viet", "Takri", "Tamil", "Tangut",
+        "Telugu", "Thaana", "Thai", "Tibetan", "Tifinagh", "Tirhuta", "Ugaritic", "Vai", "Wancho", "Warang_Citi",
+        "Yi", "Zanabazar_Square"]
+
 # these are the surrogate codepoints, which are not valid rust characters
 surrogate_codepoints = (0xd800, 0xdfff)
 
@@ -129,8 +147,6 @@ def load_unicode_data(f):
 
     # generate Not_Assigned from Assigned
     gencats["Cn"] = gen_unassigned(gencats["Assigned"])
-    # Assigned is not a real category
-    del(gencats["Assigned"])
     # Other contains Not_Assigned
     gencats["C"].extend(gencats["Cn"])
     gencats = group_cats(gencats)
@@ -192,6 +208,17 @@ def ungroup_cat(cat):
             cat_out.append(lo)
             lo += 1
     return cat_out
+
+def gen_zzzz(assigned):
+    ranges = [rng for (k, ranges) in assigned.iteritems() for rng in ranges]
+    ranges.sort()
+    zzzz = []
+    last_zzzz = 0
+    for rng in ranges:
+        if rng[0] > last_zzzz:
+            zzzz += [(last_zzzz, rng[1]-1)]
+        last_zzzz = rng[1]+1
+    return zzzz
 
 def gen_unassigned(assigned):
     assigned = set(assigned)
@@ -376,6 +403,17 @@ def emit_exhaustive_list16(f, name, t_data, is_pub=True):
 
     f.write("};\n\n")
 
+def emit_range_list(f, name, t_data, is_pub=True):
+    f.write("constexpr range_list %s = {\n"
+            % name)
+
+    f.write("    {\n")
+    data = ','.join(('{ 0x%08x, 0x%08x }' % pair) for pair in t_data)
+    format_table_content(f, data, 8)
+    f.write("\n    },\n")
+
+    f.write("};\n\n")
+
 def emit_private_use_ranges(f, name, t_data, is_pub=True):
     f.write("constexpr private_use_ranges %s = {};\n\n"
             % name)
@@ -409,6 +447,8 @@ def emit_property_module(f, mod, tbl, emit):
             emit_noncharacter_ranges(f, "%s_table" % cat, tbl[cat])
         elif cat in ["Zl", "Zp"]:
             emit_single_code_point(f, "%s_table" % cat, tbl[cat])
+        elif cat in script_list:
+            emit_range_list(f, "%s_table" % cat, tbl[cat])
         else:
             emit_bool_trie(f, "%s_table" % cat, tbl[cat])
 
@@ -484,21 +524,24 @@ constexpr version unicode_version = { %s, %s, %s };
         load_special_casing("SpecialCasing.txt", to_upper, to_lower, to_title)
         want_derived = ["Alphabetic", "Lowercase", "Uppercase", "Default_Ignorable_Code_Point"]
         derived = load_properties("DerivedCoreProperties.txt", want_derived)
-        scripts = load_properties("Scripts.txt", [])
+        scripts = load_properties("Scripts.txt", script_list)
+        # generate Zzzz from Script
+        scripts["Unknown"] = gen_zzzz(scripts)
         props = load_properties("PropList.txt", ["White_Space", "Noncharacter_Code_Point"])
         norm_props = load_properties("DerivedNormalizationProps.txt", ["Full_Composition_Exclusion"])
 
         # category tables
         for (name, cat, pfuns) in ("general_category", gencats,
-            ["C", "Cc", "Cf", "Cn", "Co",
-             "L", "Ll", "Lm", "Lo", "Lt", "Lu",
-             "M", "Mc", "Me", "Mn",
-             "N", "Nd", "Nl", "No",
-             "P", "Pc", "Pd", "Pe", "Pf", "Pi", "Po", "Ps",
-             "S", "Sc", "Sk", "Sm", "So",
-             "Z", "Zl", "Zp", "Zs"]), \
+                                    ["C", "Cc", "Cf", "Cn", "Co",
+                                    "L", "Ll", "Lm", "Lo", "Lt", "Lu",
+                                    "M", "Mc", "Me", "Mn",
+                                    "N", "Nd", "Nl", "No",
+                                    "P", "Pc", "Pd", "Pe", "Pf", "Pi", "Po", "Ps",
+                                    "S", "Sc", "Sk", "Sm", "So",
+                                    "Z", "Zl", "Zp", "Zs"]), \
                                   ("derived_property", derived, want_derived), \
-                                  ("property", props, ["White_Space"]):
+                                  ("property", props, ["White_Space"]), \
+                                  ("script", scripts, script_list + ["Unknown"]):
             emit_property_module(rf, name, cat, pfuns)
 
         # normalizations and conversions module
