@@ -59,6 +59,15 @@ script_list = [
         "Telugu", "Thaana", "Thai", "Tibetan", "Tifinagh", "Tirhuta", "Ugaritic", "Vai", "Wancho", "Warang_Citi",
         "Yi", "Zanabazar_Square"]
 
+script_extension_list = [
+        "Adlm", "Arab", "Armn", "Beng", "Bopo", "Bugi", "Buhd", "Cakm", "Copt", "Cprt",
+        "Cyrl", "Deva", "Dogr", "Dupl", "Geor", "Glag", "Gong", "Gonm", "Gran", "Grek",
+        "Gujr", "Guru", "Hang", "Hani", "Hano", "Hira", "Java", "Kali", "Kana", "Khoj",
+        "Knda", "Kthi", "Latn", "Limb", "Lina", "Linb", "Mahj", "Mand", "Mani", "Mlym",
+        "Modi", "Mong", "Mult", "Mymr", "Nand", "Orya", "Perm", "Phag", "Phlp", "Rohg",
+        "Shrd", "Sind", "Sinh", "Sogd", "Sylo", "Syrc", "Tagb", "Takr", "Tale", "Taml",
+        "Telu", "Tglg", "Thaa", "Tirh", "Yiii"]
+
 # these are the surrogate codepoints, which are not valid rust characters
 surrogate_codepoints = (0xd800, 0xdfff)
 
@@ -285,6 +294,45 @@ def load_properties(f, interestingprops):
 
     return props
 
+def load_script_extensions(f, interestingprops):
+    fetch(f)
+    props = {}
+    re1 = re.compile("^ *([0-9A-F]+) *; *(( |\w)+) #")
+    re2 = re.compile("^ *([0-9A-F]+)\.\.([0-9A-F]+) *; *(( |\w)+) #")
+
+    for line in fileinput.input(fdir + os.path.basename(f)):
+        prop = None
+        d_lo = 0
+        d_hi = 0
+        m = re1.match(line)
+        if m:
+            d_lo = m.group(1)
+            d_hi = m.group(1)
+            propl = m.group(2)
+        else:
+            m = re2.match(line)
+            if m:
+                d_lo = m.group(1)
+                d_hi = m.group(2)
+                propl = m.group(3)
+            else:
+                continue
+
+        d_lo = int(d_lo, 16)
+        d_hi = int(d_hi, 16)
+        for prop in propl.split(' '):
+            if interestingprops and prop not in interestingprops:
+                continue
+            if prop not in props:
+                props[prop] = []
+            props[prop].append((d_lo, d_hi))
+
+    # optimize if possible
+    for prop in props:
+        props[prop] = group_cat(ungroup_cat(props[prop]))
+
+    return props
+
 def escape_char(c):
     return "'\\u{%x}'" % c if c != 0 else "'\\0'"
 
@@ -436,6 +484,8 @@ def emit_single_code_point(f, name, t_data, is_pub=True):
     f.write("};\n\n")
 
 def emit_property_module(f, mod, tbl, emit):
+    f.write("namespace %s {\n\n" % mod)
+
     for cat in sorted(emit):
         if cat in ["Cc", "White_Space"]:
             emit_small_bool_trie(f, "%s_table" % cat, tbl[cat])
@@ -449,8 +499,15 @@ def emit_property_module(f, mod, tbl, emit):
             emit_single_code_point(f, "%s_table" % cat, tbl[cat])
         elif cat in script_list:
             emit_range_list(f, "%s_table" % cat, tbl[cat])
+        elif cat in ["Hani"]:
+            emit_range_list(f, "%s_table" % cat, tbl[cat])
+        elif cat in script_extension_list:
+            emit_exhaustive_list16(f, "%s_table" % cat, tbl[cat])
         else:
             emit_bool_trie(f, "%s_table" % cat, tbl[cat])
+
+    f.write("}\n")
+
 
 def emit_conversions_module(f, to_upper, to_lower, to_title):
     f.write("pub mod conversions {")
@@ -527,6 +584,7 @@ constexpr version unicode_version = { %s, %s, %s };
         scripts = load_properties("Scripts.txt", script_list)
         # generate Zzzz from Script
         scripts["Unknown"] = gen_zzzz(scripts)
+        script_exts = load_script_extensions("ScriptExtensions.txt", script_extension_list)
         props = load_properties("PropList.txt", ["White_Space", "Noncharacter_Code_Point"])
         norm_props = load_properties("DerivedNormalizationProps.txt", ["Full_Composition_Exclusion"])
 
@@ -541,7 +599,8 @@ constexpr version unicode_version = { %s, %s, %s };
                                     "Z", "Zl", "Zp", "Zs"]), \
                                   ("derived_property", derived, want_derived), \
                                   ("property", props, ["White_Space"]), \
-                                  ("script", scripts, script_list + ["Unknown"]):
+                                  ("script", scripts, script_list + ["Unknown"]), \
+                                  ("script_ext", script_exts, script_extension_list):
             emit_property_module(rf, name, cat, pfuns)
 
         # normalizations and conversions module
